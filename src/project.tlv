@@ -150,6 +150,20 @@ m5_if(m5_debounce_inputs, ['m5_tt_top(m5_my_design)'])
 // The Tiny Tapeout module
 // =======================
 
+
+\TLV tt_lab()
+   // Connect Tiny Tapeout I/Os to Virtual FPGA Lab.
+   m5+tt_connections()
+   // Instantiate the Virtual FPGA Lab.
+   m5+board(/top, /fpga, 7, $, , calc)
+   // Label the switch inputs [0..7] (1..8 on the physical switch panel) (top-to-bottom).
+   m5_if(m5_in_fpga, ['m5+tt_input_labels_viz(['"Value[0]", "Value[1]", "Value[2]", "Value[3]", "Op[0]", "Op[1]", "Op[2]", "="'])'])
+
+\TLV
+   /* verilator lint_off UNOPTFLAT */
+   m5_if(m5_in_fpga, ['m5+tt_lab()'], ['m5+calc()'])
+
+\SV
 module m5_user_module_name (
     input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
     output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
@@ -164,17 +178,4 @@ module m5_user_module_name (
 );
    wire reset = ! rst_n;
 endmodule
-\TLV tt_lab()
-   // Connect Tiny Tapeout I/Os to Virtual FPGA Lab.
-   m5+tt_connections()
-   // Instantiate the Virtual FPGA Lab.
-   m5+board(/top, /fpga, 7, $, , calc)
-   // Label the switch inputs [0..7] (1..8 on the physical switch panel) (top-to-bottom).
-   m5_if(m5_in_fpga, ['m5+tt_input_labels_viz(['"Value[0]", "Value[1]", "Value[2]", "Value[3]", "Op[0]", "Op[1]", "Op[2]", "="'])'])
-
-\TLV
-   /* verilator lint_off UNOPTFLAT */
-   m5_if(m5_in_fpga, ['m5+tt_lab()'], ['m5+calc()'])
-
-\SV
 //endmodule
