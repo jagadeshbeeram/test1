@@ -163,7 +163,7 @@ module m5_user_module_name (
     input  wire       rst_n     // reset_n - low to reset
 );
    wire reset = ! rst_n;
-
+endmodule
 \TLV tt_lab()
    // Connect Tiny Tapeout I/Os to Virtual FPGA Lab.
    m5+tt_connections()
@@ -177,4 +177,4 @@ module m5_user_module_name (
    m5_if(m5_in_fpga, ['m5+tt_lab()'], ['m5+calc()'])
 
 \SV
-endmodule
+//endmodule
