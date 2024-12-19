@@ -37,7 +37,7 @@
    @_stage
       \SV_plus
          // The program in an instruction memory.
-         reg [7:0] instrs [19:0], datam[19:0];
+         reg [7:0] instrs [7:0], datam[7:0];
          initial begin
              instrs[0] = 8'h70; // Custom 8-bit data for instruction 0
              instrs[1] = 8'h01; // Custom 8-bit data for instruction 1
@@ -64,7 +64,7 @@
       \SV_plus
          always@(posedge clk)
             if($wr_en)
-               datam\[$idata_wr_addr[4:0]\] <= $data_wr[7:0];
+               datam\[$idata_wr_addr[2:0]\] <= $data_wr[7:0];
 
 \SV
    // Include Tiny Tapeout Lab.
@@ -88,9 +88,9 @@
          $reset_lipsi = *reset || !$run;
          
          //---------------------MEMORY - INITIALIZATION---------------
-         $imem_rd_addr[4:0] = $pc[4:0];
+         $imem_rd_addr[2:0] = $pc[2:0];
          $instr[7:0] = $instr_mem;
-         $idata_rd_addr[4:0] = $dptr[4:0];
+         $idata_rd_addr[2:0] = $dptr[2:0];
          $data[7:0] = $data_rd;
          
          //-----------------------PC - LOGIC -------------------------
@@ -183,7 +183,7 @@
          
          /* verilator lint_on WIDTHEXPAND */
          $z = $acc == 8'b0;
-         $idata_wr_addr[7:0] = $dptr;
+         $idata_wr_addr[2:0] = $dptr;
          //$data_wr[7:0] = $wr_en? $acc : >>1$data_wr;
          $data_wr[7:0] = !$wr_en ? >>1$data_wr:
                          !$is_brl ? $acc:
