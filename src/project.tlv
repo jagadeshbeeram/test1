@@ -225,7 +225,7 @@ module m5_user_module_name (
    // Instantiate the Virtual FPGA Lab.
    m5+board(/top, /fpga, 7, $, , my_design)
    // Label the switch inputs [0..7] (1..8 on the physical switch panel) (bottom-to-top).
-   m5+tt_input_labels_viz(['"1'b0", "1'b0", "1'b0", "1'b0", "1'b0", "1'b0", "1'b0", "1'b0"'])
+   m5+tt_input_labels_viz(['"UNUSED", "UNUSED", "UNUSED", "UNUSED", "UNUSED", "UNUSED", "UNUSED", "UNUSED"'])
 
 \SV_plus
 
@@ -240,8 +240,8 @@ module m5_user_module_name (
    // Connect Tiny Tapeout outputs.
    // Note that my_design will be under /fpga_pins/fpga.
    // Example *uo_out = /fpga_pins/fpga|my_pipe>>3$uo_out;
-   assign *uo_out = 8'b0;
-   assign *uio_out = 8'b0;
+   //assign *uo_out = 8'b0;
+   //assign *uio_out = 8'b0;
    assign *uio_oe = 8'b0;
 
 endmodule
