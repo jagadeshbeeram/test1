@@ -303,7 +303,7 @@ module m5_user_module_name (
    // Connect Tiny Tapeout outputs.
    // Note that my_design will be under /fpga_pins/fpga.
    // Example *uo_out = /fpga_pins/fpga|my_pipe>>3$uo_out;
-   assign *uo_out = 8'b0;
+   //assign *uo_out = 8'b0;
    assign *uio_out = 8'b0;
    assign *uio_oe = 8'b0;
 
