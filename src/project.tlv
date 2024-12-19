@@ -8,8 +8,6 @@
    **/
 
    use(m5-1.0)  // See M5 docs in Makerchip IDE Learn menu.
-   //define_hier(XREG, 16)
-   ///define_hier(XREG, 16)
 
    // ---SETTINGS---
    var(my_design, tt_um_example)  /// Change tt_um_example to tt_um_<your-github-username>_<name-of-your-project>. (See README.md.)
@@ -23,141 +21,205 @@
    // If debouncing, your top module is wrapped within a debouncing module, so it has a different name.
    var(user_module_name, m5_if(m5_debounce_inputs, my_design, m5_my_design))
    var(debounce_cnt, m5_if_defined_as(MAKERCHIP, 1, 8'h03, 8'hff))
-\SV
-   // Include Tiny Tapeout Lab.
-   m4_include_lib(['https:/']['/raw.githubusercontent.com/os-fpga/Virtual-FPGA-Lab/5744600215af09224b7235479be84c30c6e50cb7/tlv_lib/tiny_tapeout_lib.tlv'])
-   ///m5_define_hier(IMEM, 11)
 \TLV imem(@_stage)
    // Instruction Memory containing program.
    @_stage
       \SV_plus
-         logic [7:0] instrs [10:0];
+         // The program in an instruction memory.
+         reg [7:0] instrs [31:0], datam[31:0];
          initial begin
-             instrs[0] = 8'hC7; // Custom 8-bit data for instruction 0
-             instrs[1] = 8'h12; // Custom 8-bit data for instruction 1
-             instrs[2] = 8'hC0; // Custom 8-bit data for instruction 2
-             instrs[3] = 8'h34;
-             instrs[4] = 8'hC1;
-             instrs[5] = 8'h12;
-             instrs[6] = 8'hC4;
-             instrs[7] = 8'hf0;
-             instrs[8] = 8'hC5;
-             instrs[9] = 8'hC6;
-             instrs[10] = 8'hFF;
-             instrs[10] = 8'h82;
-             instrs[10] = 8'hFF;// Custom data for instruction 10
+             instrs[0] = 8'h71; // Custom 8-bit data for instruction 0
+             instrs[1] = 8'h01; // Custom 8-bit data for instruction 1
+             instrs[2] = 8'h9F; // Custom 8-bit data for instruction 2
+             instrs[3] = 8'h01;
+             instrs[4] = 8'h0F;
+             instrs[5] = 8'hDD;
+             instrs[6] = 8'hDD;
+             instrs[7] = 8'hDD;
+             instrs[8] = 8'h01;
+             instrs[9] = 8'h01;
+             instrs[10] = 8'h01;
+             instrs[11] = 8'hFF; // Custom data for instruction 10
+             instrs[12] = 8'h01;
+             instrs[13] = 8'h01;
+             instrs[14] = 8'hDD;
+             ///data values
+             datam[0] =8'h55;
+             datam[1] =8'h06;
+             datam[2] =8'h04;
+             datam[3] =8'h00;
+             datam[4] =8'h09;
+             datam[8] =8'h05;
          end
-      $imem_rd_data[7:0] = *instrs\[$imem_rd_addr\];
-// A 2-rd 1-wr register file in |cpu that reads and writes in the given stages. If read/write stages are equal, the read values reflect previous writes.
-// Reads earlier than writes will require bypass.
-\TLV rf(@_rd, @_wr)
-   // Reg File
-   @_wr
-      /xreg[15:0]
-         $wr = (|cpu$rf_wr_index == #xreg);
-         $value[7:0] = |cpu$reset ?   #xreg           :
-                        $wr        ?   |cpu$rf_wr_data :
-                                       $RETAIN;
-   @_rd
-      $rf_rd_data1[7:0] = /xreg[$rf_rd_index1[3:0]]>>m4_stage_eval(@_wr - @_rd + 1)$value;
-      $rf_rd_data2[7:0] = /xreg[$rf_rd_index2[3:0]]>>m4_stage_eval(@_wr - @_rd + 1)$value;
-      //`BOGUS_USE($rf_rd_data1 $rf_rd_data2)
-\TLV dmem(@_stage)
-   // Data Memory
-   @_stage
-      /dmem[15:0]
-         $wr = (|cpu$dmem_addr[3:0] == #dmem);
-         $value[7:0] = |cpu$reset ?   #dmem :
-                        $wr        ?   |cpu$dmem_wr_data :
-                                       $RETAIN;
-                                  
-      $dmem_rd_data[7:0] = /dmem[$dmem_addr[3:0]]>>1$value;
-      `BOGUS_USE($dmem_rd_data)
+      
+      $instr_mem[7:0] = instrs\[$imem_rd_addr\];
+      ?$rd_en
+         $data_rd[7:0] = datam\[$idata_rd_addr\];
+      \SV_plus
+         always@(posedge clk)
+            if($wr_en)
+               datam\[$idata_wr_addr[4:0]\] <= $data_wr[7:0];
+\SV
+   // Include Tiny Tapeout Lab.
+   m4_include_lib(['https:/']['/raw.githubusercontent.com/os-fpga/Virtual-FPGA-Lab/5744600215af09224b7235479be84c30c6e50cb7/tlv_lib/tiny_tapeout_lib.tlv'])
+   
 \TLV my_design()
-   |cpu
-      @1 
-         $reset = *reset;
-         $start = >>1$reset && !$reset;
-         $pc[3:0] =
-               >>1$reset
-                   ? 4'd0 :
-                   >>1$pc_inc[3:0];
-         $imem_rd_addr[3:0] = $pc[3:0];
-         $instr[7:0] = $imem_rd_data;
-         //decoder
-         $is_alu =  $instr_vaid && ($instr[7] == 1'b0);//operations involve ALU logic                 //done
-         $is_store = $instr_vaid && ($instr[7:4] == 4'b1000);//store A into register m[r] = A         //done
-         $is_br_link = $instr_vaid && ($instr[7:4] == 4'b1001);//branch and link m[r] = PC, PC = A    //done
-         $is_load_lm = $instr_vaid && ($instr[7:4] == 4'b1010);//load indirect A = m[m[r]]            //done
-         $is_store_lm = $instr_vaid && ($instr[7:4] == 4'b1011);     //store indirect m[m[r]] = A          //done
-         $is_alu_lm = $instr_vaid && ($instr[7:4] == 4'b1100);//ALU immediate A = A f n               //done
-         $is_branch = $instr_vaid && ($instr[7:4] == 4'b1101);//branch                                //done
-         $en_shift = $instr_vaid && ($instr[7:4] == 4'b1110);// ALU shift A = shift(A)                //
-         $is_exit = $instr_vaid && ($instr[7:4] == 4'b1111);//exit for the tester PC = PC             //done
-         //finding whether is a valid instruction or not
-         $instr_vaid = $start || !(>>1$instr[7:5] == 3'b110);
-         $rd[3:0] = $instr[3:0];
-         //ALU operators
-         $rf_rd_index1[3:0] = 4'b0000;
-         $rf_rd_index2[3:0] = $rd;
-         $acc[7:0] = $rf_rd_data1;
-         $op[7:0] = $rf_rd_data2;
+
+   // ============================================
+   // If you are using TL-Verilog for your design,
+   // your TL-Verilog logic goes here.
+   // Optionally, provide \viz_js here (for TL-Verilog or Verilog logic).
+   // Tiny Tapeout inputs can be referenced as, e.g. *ui_in.
+   // (Connect Tiny Tapeout outputs at the end of this template.)
+   // ============================================
+   
+   |prog
+      @1
+         //$prog = *ui_in[7];
+         //$reset = *reset;
+   
+   |lipsi
+      @1
+         $run = 1'b0;//!*ui_in[7];
+         $reset_lipsi = *reset || $run;
          
-         $imm[7:0] = $instr_vaid ? $op[7:0]:$instr[7:0];
+         //---------------------MEMORY - INITIALIZATION---------------
+         $imem_rd_addr[4:0] = $pc[4:0];
+         $instr[7:0] = $instr_mem;
+         $idata_rd_addr[4:0] = $dptr[4:0];
+         $data[7:0] = $data_rd;
          
-         $branch_true = !$is_branch
-                               ? 1'b0 :
-                        ($instr[1:0] == 2'b00
-                               ? 1'b1 :
-                        $instr[1:0] == 2'b10
-                               ? $acc == $imm[7:0] :
-                        $instr[1:0] == 2'b11
-                               ? $acc != $imm[7:0] : 1'b0);
+         //-----------------------PC - LOGIC -------------------------
+         $pc[7:0] = $reset_lipsi || >>1$reset_lipsi
+                       ? 8'b0:
+                    >>1$exit || >>1$is_ld_ind || >>1$is_st_ind 
+                       ? >>1$pc:
+                    >>2$is_br || (>>2$is_brz && >>1$z) || (>>2$is_brnz && !>>1$z)
+                       ? >>1$instr:
+                    >>1$is_brl
+                       ? >>1$acc:
+                    >>1$is_ret
+                       ? >>1$data+1'b1:
+                     >>1$pc + 8'b1;
+         //---------------------DECODE - LOGIC -----------------------
+         $valid = (1'b1^>>1$is_2cyc) && !$reset_lipsi;
          
-      @2
-         $pc_inc[3:0] = $is_exit
-                            ? $pc :
-                        $is_br_link
-                            ? $acc[3:0] :
-                        ($instr_vaid || >>1$is_alu_lm)
-                            ? $pc + 4'd1 :
-                        $branch_true
-                            ? $imm[3:0] :
-                              $pc ;
-         $dmem_addr[3:0] = $imm[3:0];
+         $is_ALU_reg = $instr[7] == 0 && $valid;
+         $is_st = $instr[7:4] == 4'b1000 && $valid ;
+         $is_brl = $instr[7:4] == 4'b1001 && $valid ;
+         $is_ret = {$instr[7:4], $instr[1:0]} == 6'b1101_01 && $valid;
+         $is_ld_ind = $instr[7:4] == 4'b1010 && $valid;
+         $is_st_ind = $instr[7:4] == 4'b1011 && $valid;
+         $is_sh = $instr[7:4] == 4'b1110 && $valid;
+         //$is_io = $instr[7:4] == 4'b1111 && $instr[7:0]!=8'b1111_1111 && $valid;
+         $exit = $instr[7:0] == 8'b1111_1111 && $valid;
+         $is_ALU_imm = $instr[7:4] == 4'b1100 && $valid;
+         $is_br = {$instr[7:4], $instr[1:0]} == 6'b1101_00 && $valid;
+         $is_brz = {$instr[7:4], $instr[1:0]} == 6'b1101_10 && $valid;
+         $is_brnz = {$instr[7:4], $instr[1:0]} == 6'b1101_11 && $valid;
+         $is_2cyc = ($is_ALU_imm || $is_br || $is_ld_ind || $is_st_ind || $is_brz || $is_brnz);
+         //---------------------ALU - OPERATIONS---------------------
+         $func[2:0] = $is_ALU_reg
+                         ? $instr[6:4] :
+                      >>1$is_ALU_imm
+                         ? >>1$instr[2:0] :
+                      3'bxxx;
+         
+         $dptr[7:0] = $reset_lipsi
+                    ? 8'b0:
+                 $is_ALU_reg || $is_ld_ind || $is_st || $is_st_ind || $is_brl
+                    ? {4'b0,$instr[3:0]}:
+                 $is_brl
+                    ?{6'b1111_11 ,$instr[1:0]}:
+                 $is_ret
+                    ?{6'b1111_11 ,$instr[3:2]}:
+                 >>1$is_ld_ind  || >>1$is_st_ind 
+                    ? >>1$data:
+                    >>1$dptr;
+         
+         $rd_en = $is_ALU_reg || $is_ld_ind || >>1$is_ld_ind || $is_st_ind || $is_ret;
+         $wr_en = $is_st || >>1$is_st_ind || $is_brl;
+         $op[7:0] = >>1$is_ALU_imm
+                       ? $instr :
+                    $is_ALU_reg
+                       ? $data:
+                    8'bxx;
+         $is_ALU = >>1$is_ALU_imm || $is_ALU_reg;
+         
          /* verilator lint_off WIDTHEXPAND */
-         {$c,$result[7:0]} = $reset
-                                     ? {1'b0,8'b0} :
-                             $is_load_lm
-                                     ?  $dmem_rd_data[7:0] :
-                             ($is_store)
-                                     ? $acc :
-                             $en_shift
-                                     ? ($instr[1:0] == 2'b00 ? {$acc[7:0],$c} : $instr[1:0] == 2'b01 ? {$acc[0],$c,$acc[7:1]} : $instr[1:0] == 2'b10 ? {$c,$acc[6:0],$acc[7]} : {$c,$acc[0],$acc[7:1]}) :
-                             !($is_alu || $is_alu_lm)
-                                     ? {$c,$acc[7:0]} :
-                                    (($instr[6:4] | $instr[2:0]) == 3'b000 ? $acc + <<1$imm[7:0] :
-                                    ($instr[6:4] | $instr[2:0]) == 3'b001 ? $acc - <<1$imm[7:0] :
-                                    ($instr[6:4] | $instr[2:0]) == 3'b010 ? $acc + <<1$imm[7:0] + $c :
-                                    ($instr[6:4] | $instr[2:0]) == 3'b011 ? $acc - <<1$imm[7:0] - $c :
-                                    ($instr[6:4] | $instr[2:0]) == 3'b100 ? $acc & <<1$imm[7:0] :
-                                    ($instr[6:4] | $instr[2:0]) == 3'b101 ? $acc | <<1$imm[7:0]:
-                                    ($instr[6:4] | $instr[2:0]) == 3'b110 ? $acc ^ <<1$imm[7:0] : 
-                                    ($instr[6:4] | $instr[2:0]) == 3'b111 ? <<1$imm[7:0] : <<1$imm[7:0]);
+         {$c,$acc[7:0]} = $is_ALU && $func == 3'b000
+                           ? >>1$acc + $op[7:0] :
+                        $is_ALU && $func == 3'b000
+                           ? >>1$acc + $op[7:0] :
+                        $is_ALU && $func == 3'b001
+                           ? >>1$acc - $op[7:0] :
+                        $is_ALU && $func == 3'b010
+                           ? >>1$acc + $op[7:0] + >>1$c :
+                        $is_ALU && $func == 3'b011
+                           ? >>1$acc - $op[7:0] - >>1$c :
+                        $is_ALU && $func == 3'b100
+                           ? {>>1$c, >>1$acc & $op[7:0]} :
+                        $is_ALU && $func == 3'b101
+                           ? {>>1$c, >>1$acc | $op[7:0]}:
+                        $is_ALU && $func == 3'b110
+                           ? {>>1$c, >>1$acc ^ $op[7:0]} :
+                        $is_ALU && $func == 3'b111
+                           ? {>>1$c, $op[7:0]}:
+                        $is_sh && $instr[1:0] == 2'b00
+                           ? {>>1$acc[7:0],>>1$c}:
+                        $is_sh && $instr[1:0] == 2'b01
+                           ? {>>1$acc[0],>>1$c,>>1$acc[7:1]}:
+                        $is_sh && $instr[1:0] == 2'b10
+                           ? {>>1$c,>>1$acc[6:0],>>1$acc[7]}:
+                        $is_sh && $instr[1:0] == 2'b11
+                           ? {>>1$c,>>1$acc[0],>>1$acc[7:1]}:
+                        >>1$is_ld_ind
+                           ? {>>1$c,$data}:
+                         {>>1$c,>>1$acc[7:0]};
+         
          /* verilator lint_on WIDTHEXPAND */
-         //$dmem_wr_data[7:0] = $acc[7:0];
-         $rf_wr_index[3:0] = ($is_store || $is_br_link) ? $rf_rd_index2 : 4'b0000;
-         $rf_wr_data[7:0] =  !$is_br_link
-                                ? $pc :
-                              !$branch_true
-                                ? $result[7:0] :
-                                      $result[7:0];
+         $z = $acc == 8'b0;
+         $idata_wr_addr[7:0] = $dptr;
+         //$data_wr[7:0] = $wr_en? $acc : >>1$data_wr;
+         $data_wr[7:0] = !$wr_en ? >>1$data_wr:
+                         !$is_brl ? $acc:
+                         $pc;
+         $digit[3:0] = *ui_in[0]? $acc[7:4] : $acc[3:0];
+         *uo_out[7:0] = $digit[3:0] == 4'b0000
+             ? 8'b00111111 :
+             $digit[3:0] == 4'b0001
+             ? 8'b00000110 :
+             $digit[3:0] == 4'b0010
+             ? 8'b01011011 :
+             $digit[3:0] == 4'b0011
+             ? 8'b01001111 :
+             $digit[3:0] == 4'b0100
+             ? 8'b01100110 :
+             $digit[3:0] == 4'b0101
+             ? 8'b01101101 :
+             $digit[3:0] == 4'b0110
+             ? 8'b01111101 :
+             $digit[3:0] == 4'b0111
+             ? 8'b00000111 :
+             $digit[3:0] == 4'b1000
+             ? 8'b01111111 :
+             $digit[3:0] == 4'b1001
+             ? 8'b01101111 :
+             $digit[3:0] == 4'b1010
+             ? 8'b01110111 :
+             $digit[3:0] == 4'b1011
+             ? 8'b01111100 :
+             $digit[3:0] == 4'b1100
+             ? 8'b00111001 :
+             $digit[3:0] == 4'b1101
+             ? 8'b01011110 :
+             $digit[3:0] == 4'b1110
+             ? 8'b01111001 : 8'b01110001 ;
          
          
-      //$accumulator = $
       m5+imem(@1)
-      m5+rf(@1,@2)
-      m5+dmem(@2)
+   
+   // ...
 
 \SV
 
@@ -194,7 +256,7 @@ module top(input logic clk, input logic reset, input logic [31:0] cyc_cnt, outpu
    // Instantiate the Tiny Tapeout module.
    m5_user_module_name tt(.*);
 
-   assign passed = cyc_cnt > 100;
+   assign passed = cyc_cnt > 20;
    assign failed = 1'b0;
 endmodule
 
@@ -222,6 +284,7 @@ module m5_user_module_name (
    /* verilator lint_off UNOPTFLAT */
    // Connect Tiny Tapeout I/Os to Virtual FPGA Lab.
    m5+tt_connections()
+
    // Instantiate the Virtual FPGA Lab.
    m5+board(/top, /fpga, 7, $, , my_design)
    // Label the switch inputs [0..7] (1..8 on the physical switch panel) (bottom-to-top).
@@ -240,9 +303,8 @@ module m5_user_module_name (
    // Connect Tiny Tapeout outputs.
    // Note that my_design will be under /fpga_pins/fpga.
    // Example *uo_out = /fpga_pins/fpga|my_pipe>>3$uo_out;
-   //assign *uo_out = 8'b0;
-   //assign *uio_out = 8'b0;
+   assign *uo_out = 8'b0;
+   assign *uio_out = 8'b0;
    assign *uio_oe = 8'b0;
 
 endmodule
-
